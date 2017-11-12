@@ -1,18 +1,25 @@
 # -*- coding: utf-8 -*-
+"""
 
+    Liouville pathways and their analysis
+
+
+
+"""
 
 
 import numpy
 
 from ..utils.types import Integer
 from ..core.units import cm2int
+from ..core.managers import UnitsManaged
 
-class liouville_pathway:
+class liouville_pathway(UnitsManaged):
 
     order = Integer("order")
     nint = Integer("nint")
     
-    def __init__(self,ptype,sinit,aggregate=False, 
+    def __init__(self, ptype, sinit, aggregate=False, 
                  order=3, pname="",relax_order=0, popt_band=0):
         """Liouville pathway through a molecular aggregate
 
@@ -82,7 +89,7 @@ class liouville_pathway:
         self.ne = 0
 
         # light indiced transitions
-        self.transitions = numpy.zeros((order+1,2))
+        self.transitions = numpy.zeros((order+1,2), dtype=numpy.int)
         
         # relaxation induced transitions
         self.relaxations = [None]*relax_order
@@ -101,6 +108,9 @@ class liouville_pathway:
         
         # frequency of the transition
         self.frequency = numpy.zeros(1+order+relax_order)
+        
+        # orientational prefactor (negative means that it is not initialized)
+        self.pref = -1.0
         
         # band through which the pathway travels at population time
         self.popt_band = popt_band
@@ -181,9 +191,9 @@ class liouville_pathway:
             elif self.event[ee] == "R":
                 lf = self.relaxations[rr][0][0]
                 rf = self.relaxations[rr][0][1]
-
+                ene = self.convert_energy_2_current_u(self.frequency[ee])
                 outR  = "    |%i    %i|      %r\n" % (lf,rf,
-                                            numpy.round(self.frequency[ee]))
+                                            numpy.round(ene))
                 outR += "   >|******|< \n"
                 outR += "    |      | \n"
                 out = outR+out
@@ -206,7 +216,7 @@ class liouville_pathway:
         
         return out 
     
-    def add_transition(self,transition,side):
+    def add_transition(self, transition, side):
         """ Adds a transition to the Liouville pathway. 
 
         Parameters
@@ -256,10 +266,13 @@ class liouville_pathway:
           Some values can be stored locally - they are also
           in the aggregate object
         """
-        # FIXME: we assume that pathways are drawn in cm-1
+        #self.energy[self.nint] = \
+        #       (self.aggregate.HH[nf,nf]/cm2int 
+        #       -self.aggregate.HH[ni,ni]/cm2int)
         self.energy[self.nint] = \
-               (self.aggregate.HH[nf,nf]/cm2int 
-               -self.aggregate.HH[ni,ni]/cm2int)
+               (self.aggregate.HH[nf,nf] 
+               -self.aggregate.HH[ni,ni])
+               
         self.dmoments[self.nint,:] = \
                self.aggregate.DD[nf,ni,:]
         
@@ -268,9 +281,8 @@ class liouville_pathway:
         if self.nint < self.order:
             nl = self.current[0]
             np = self.current[1]
-            # FIXME: see above
-            el = self.aggregate.HH[nl,nl]/cm2int
-            ep = self.aggregate.HH[np,np]/cm2int
+            el = self.aggregate.HH[nl,nl]
+            ep = self.aggregate.HH[np,np]
             
             self.frequency[self.ne] = el - ep
         elif self.nint > self.order:
@@ -283,7 +295,7 @@ class liouville_pathway:
         self.event[self.ne] = "I"
         self.ne += 1
         
-    def add_transfer(self,fin,sta):
+    def add_transfer(self, fin, sta):
         """Adds an energy transfer compoment to the pathway
         
         
@@ -312,9 +324,8 @@ class liouville_pathway:
         self.current[1] = nfr
         self.states[self.ne,0] = self.current[0]
         self.states[self.ne,1] = self.current[1]
-        # FIXME: units of energy
-        el = self.aggregate.HH[nfl,nfl]/cm2int
-        ep = self.aggregate.HH[nfr,nfr]/cm2int
+        el = self.aggregate.HH[nfl,nfl]
+        ep = self.aggregate.HH[nfr,nfr]
         self.frequency[self.ne] = el - ep       
 
         self.nrel += 1
@@ -346,10 +357,15 @@ class liouville_pathway:
         
         
     def get_current_state(self):
+        """
+        
+        """
         return self.current
         
     def get_transition(self,n):
-        """ Returns info on the transition occuring on the n-th interaction"""
+        """ Returns info on the transition occuring on the n-th interaction
+        
+        """
         return self.side[n], self.transitions[n]
     
     def orientational_averaging(self,lab):
@@ -360,22 +376,201 @@ class liouville_pathway:
         
         """
         # weight in the initial state of the first transition
+        n0 = self.transitions[0,1]
         self.pref = self.sign*(numpy.dot(lab.F4eM4,self.F4n)
-        *numpy.real(self.aggregate.rho0[self.transitions[0,1]])) 
+        *numpy.real(self.aggregate.rho0[n0,n0])) 
         
     
     def get_transition_energy(self,n):
-        """ Transition energy of a given interaction with light"""
+        """ Transition energy of a given interaction with light
+        
+        """
         return self.energy[n]
         
     def get_interval_frequency(self,n):
+        """Returns frequency corresponding to a given response interval
+        
+        """
         return self.frequency[n]
     
-    def get_dmoment(self,n):
-        """ Transition dipole moment of a given interaction with light"""
+    def get_dmoment(self, n):
+        """ Transition dipole moment of a given interaction with light
+        
+        """
         return self.dmoments[n]
         
     def get_prefactor(self):
-        """ Dipole and temperature dependent prefactor """
+        """ Dipole and temperature dependent prefactor 
+        
+        """
         return self.pref
+    
+    
+
+class LiouvillePathwayAnalyzer(UnitsManaged):
+    """Class providing methods for Liouville pathway analysis
+    
+    
+    Parameters
+    ----------
+    
+    pathways : list
+        List of pathways to analyze
+    
+    """
+
+    def __init__(self, pathways=None):
+        self.pathways = pathways
+
+
+    def set_pathways(self, pathways):
+        """Sets pathways to be analyzed
+        
+        """
+        self.pathways = pathways
+
+    
+    def max_pref(self, pathways):
+        """Return the maximum of pathway prefactors
+        
+        
+        Parameters
+        ----------
+        
+        pathways : list
+            List of Liouville pathways
+            
+            
+        Returns
+        -------
+        
+        pmax : float
+            Maximum prefactor of the pathways
+            
+        rec : int
+            position of the pathway with the maximum prefactor
+        
+        """
+        
+        if pathways is None:
+            pthways = self.pathways
+        else:
+            pthways = pathways
+        
+        pmax = 0.0
+        k = 0
+        rec = -1
+        for pway in pthways:
+            if pway.pref > pmax:
+                rec = k
+                pmax = pway.pref
+            k += 1
+            
+        return (pmax, rec)
+
+
+    def select_pref_GT(self, val, pathways=None, replace=True,
+                       verbatime=False):
+        """Select all pathways with prefactors greater than a value
+        
+        """
+        
+        if pathways is None:
+            pthways = self.pathways
+        else:
+            pthways = pathways
+            
+        selected = []
+        for pway in pthways:
+            if pway.pref > val:
+                selected.append(pway)
+        
+        if verbatime:
+            print("Selected", len(selected), "pathways")
+            
+        # if the pathways were not specified from argument then return selected
+        # to self
+        if (pathways is None) and replace:
+            self.pathways = selected
+            
+        return selected
+
+    
+    def select_frequency_window(self, window, pathways=None, replace=True, 
+                                verbatime=False):
+        """Selects pathways with omega_1 and omega_3 in a certain range
+        
+        """
+        if pathways is None:
+            pthways = self.pathways
+        else:
+            pthways = pathways
+
+        om1_low = self.convert_energy_2_internal_u(window[0])
+        om1_upp = self.convert_energy_2_internal_u(window[1])
+        om3_low = self.convert_energy_2_internal_u(window[2])
+        om3_upp = self.convert_energy_2_internal_u(window[3])
+        
+        
+        selected = []
+        
+        for pway in pthways:
+            ne = len(pway.frequency)
+            #om1 = numpy.abs(pway.frequency[0])
+            om1 = numpy.abs(pway.get_interval_frequency(0))
+            #om3 = pway.frequency[ne-2]
+            om3 = numpy.abs(pway.get_interval_frequency(ne-2))
+            
+            if (((om1 >= om1_low) and (om1 <= om1_upp)) and 
+                ((om3 >= om3_low) and (om3 <= om3_upp))):
+                selected.append(pway) 
+                
+        if verbatime:
+            print("Selected", len(selected), "pathways")
+
+        if (pathways is None) and replace:
+            self.pathways = selected
+            
+        return selected
+
+
+    def select_omega2(self, interval, pathways=None, replace=True,
+                      verbatime=False):
+        """Selects pathways with omega_2 in a certain interval
+        
+        """    
+        if pathways is None:
+            pthways = self.pathways
+        else:
+            pthways = pathways
+
+        om2_low = self.convert_energy_2_internal_u(interval[0])
+        om2_upp = self.convert_energy_2_internal_u(interval[1])  
+        
+        selected = []
+        
+        for pway in pthways:
+            ne = len(pway.frequency)
+            #om2 = pway.frequency[ne-3]
+            om2 = pway.get_interval_frequency(ne-3)
+            
+            if (om2 >= om2_low) and (om2 <= om2_upp):
+                selected.append(pway)
+                
+        if verbatime:
+            print("Selected", len(selected), "pathways")
+
+        if (pathways is None) and replace:
+            self.pathways = selected
+        
+        return selected
+    
+    
+    def order_by_pref(self, pthways):
+        """Orders the list of pathways by pathway prefactors
+        
+        """
+        lst = sorted(pthways, key=lambda pway: pway.pref, reverse=True)
+        return lst
+    
         
