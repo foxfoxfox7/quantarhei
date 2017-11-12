@@ -7,13 +7,13 @@
 """
 import numpy
 
-from quantarhei import Manager
-from quantarhei import energy_units
+from ..core.managers import Manager
+from ..core.managers import energy_units
 
-from quantarhei import Aggregate
-from quantarhei import Molecule
-from quantarhei import TimeAxis
-from quantarhei import CorrelationFunction
+from ..builders.aggregates import Aggregate
+from ..builders.molecules import Molecule
+from ..core.time import TimeAxis
+from ..qm.corfunctions.correlationfunctions import CorrelationFunction
 
 
 class ModelGenerator():
@@ -33,9 +33,9 @@ class ModelGenerator():
             
             with energy_units("1/cm"):
 
-                m1 = Molecule("Mol 1", [0.0, 10100.0])
-                m2 = Molecule("Mol 2", [0.0, 10050.0])
-                m3 = Molecule("Mol 3", [0.0, 10000.0])
+                m1 = Molecule(name="Mol 1", elenergies=[0.0, 10100.0])
+                m2 = Molecule(name="Mol 2", elenergies=[0.0, 10050.0])
+                m3 = Molecule(name="Mol 3", elenergies=[0.0, 10000.0])
                 
                 
                 m1.position = [0.0, 0.0, 0.0]
@@ -67,11 +67,11 @@ class ModelGenerator():
             
             with energy_units("1/cm"):
 
-                m1 = Molecule("Mol 1", [0.0, 10100.0])
-                m2 = Molecule("Mol 2", [0.0, 10050.0])
-                m3 = Molecule("Mol 3", [0.0, 10000.0])
-                m4 = Molecule("Mol 4", [0.0, 10200.0])
-                m5 = Molecule("Mol 5", [0.0, 10070.0])                
+                m1 = Molecule(name="Mol 1", elenergies=[0.0, 10100.0])
+                m2 = Molecule(name="Mol 2", elenergies=[0.0, 10050.0])
+                m3 = Molecule(name="Mol 3", elenergies=[0.0, 10000.0])
+                m4 = Molecule(name="Mol 4", elenergies=[0.0, 10200.0])
+                m5 = Molecule(name="Mol 5", elenergies=[0.0, 10070.0])                
                 
                 m1.position = [0.0, 0.0, 0.0]
                 m2.position = [15.0, 0.0, 0.0]
