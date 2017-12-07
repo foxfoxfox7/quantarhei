@@ -5,7 +5,14 @@ from paver.easy import sh
 """ 
     Particular tasks
 """
+@task
+def matplotlib_tests():
+    sh('cd quantarhei; ./tests.py; cd ..')
 
+@task
+def examples():
+    sh('nosetests -vs tests/unit/wizard/examples/')
+    
 @task
 def unit_tests_vs():
     sh('nosetests -vs tests/unit')
@@ -68,6 +75,10 @@ def pylint():
     r.set_path(path)
 #    r.un('statevector.py')
 
+    path = 'quantarhei/qm/liouvillespace'
+    r.set_path(path)
+    r.un('lindbladform.py')
+    
     path = 'quantarhei/builders'
     r.set_path(path)
 #    r.un('pdb.py')    
@@ -81,7 +92,8 @@ def pylint():
     Default 
 """
 
-@needs('unit_tests_v','doc_tests_v','aloe_tests_v') #, 'pylint')
+@needs('matplotlib_tests', 'unit_tests_v',
+       'doc_tests_v','aloe_tests_v') #, 'pylint')
 @task
 def default():
     pass
@@ -107,3 +119,8 @@ def windows():
     """ On windows, aloe tool does not work. We do only unit tests"""
     pass
 
+@task
+def dev():
+   sh('nosetests -vs tests/unit/qm/liouvillespace/test_lindblad.py')
+   sh('nosetests -vs tests/unit/builders/test_aggregates.py')
+ 
