@@ -189,6 +189,7 @@ class TDRedfieldRelaxationTensor(RedfieldRelaxationTensor, TimeDependent):
         RR = numpy.zeros((Nt, Na, Na, Na, Na), dtype=numpy.complex128)
         
         for m in range(Nb):
+            #print("m =", m ,"of", Nb)
             for tt in range(Nt):
                 KmLm = numpy.dot(Km[m,:,:],Lm[tt,m,:,:])
                 LdKm = numpy.dot(Ld[tt,m,:,:],Km[m,:,:])
@@ -224,19 +225,30 @@ class TDRedfieldRelaxationTensor(RedfieldRelaxationTensor, TimeDependent):
             inverse of the transformation matrix
             
         """        
-        
 
-        if not self._data_initialized:
-            return
-        
-        if (self.manager.warn_about_basis_change):
-                print("\nQr >>> Relaxation tensor '%s' changes basis" %self.name)
-           
         if inv is None:
             S1 = numpy.linalg.inv(SS)
         else:
             S1 = inv
         dim = SS.shape[0]
+        
+
+        if not self._data_initialized:
+            for tt in range(self.Nt):
+                for m in range(self.Km.shape[0]):
+                    self.Lm[tt, m, :, :] = \
+                    numpy.dot(S1,numpy.dot(self.Lm[tt, m, :, :],SS))
+                    self.Ld[tt, m, :, :] = \
+                    numpy.dot(S1,numpy.dot(self.Ld[tt, m, :, :],SS))            
+            for m in range(self.Km.shape[0]):
+                self.Km[m, :, :] = numpy.dot(S1,numpy.dot(self.Km[m, :, :],SS))
+                
+            return
+        
+        
+        if (self.manager.warn_about_basis_change):
+                print("\nQr >>> Relaxation tensor '%s' changes basis" %self.name)
+           
         
         for tt in range(self.Nt):
             for c in range(dim):
