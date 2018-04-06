@@ -30,6 +30,9 @@ from ..liouvillespace.redfieldtensor import RelaxationTensor
 from ..hilbertspace.operators import ReducedDensityMatrix, DensityMatrix
 from .dmevolution import ReducedDensityMatrixEvolution
 from ...core.matrixdata import MatrixData
+from ...core.managers import Manager
+
+import quantarhei as qr
 
 
 class ReducedDensityMatrixPropagator(MatrixData, Saveable): 
@@ -100,9 +103,7 @@ class ReducedDensityMatrixPropagator(MatrixData, Saveable):
             if Efield != "":
                 if isinstance(Efield,numpy.ndarray):
                     self.Efield = Efield
-                    self.has_Efield = True
-                
-                
+                    self.has_Efield = True 
             
             self.Odt = self.TimeAxis.data[1]-self.TimeAxis.data[0]
             self.dt = self.Odt
@@ -115,9 +116,10 @@ class ReducedDensityMatrixPropagator(MatrixData, Saveable):
             self.data = numpy.zeros((self.Nt,N,N),dtype=numpy.complex64)
             self.propagation_name = ""
         
+            self.verbose = Manager().log_conf.verbose
+
         
-        
-    def setDtRefinement(self,Nref):
+    def setDtRefinement(self, Nref):
         """
         The TimeAxis object specifies at what times the propagation
         should be stored. We can tell the propagator to use finer
@@ -410,8 +412,11 @@ class ReducedDensityMatrixPropagator(MatrixData, Saveable):
  
  
     def __propagate_short_exp_with_relaxation(self, rhoi, L=4):
-        """
-              Short exp integration
+        """Integration by short exponentional expansion
+        
+        Integration by expanding exponential to Lth order
+              
+              
         """
         
         try:
@@ -451,9 +456,38 @@ class ReducedDensityMatrixPropagator(MatrixData, Saveable):
         return pr  
         
     def __propagate_short_exp_with_rel_operators(self, rhoi, L=4):
+        """Integration by short exponentional expansion
+        
+        Integration by expanding exponential to Lth order. 
+              
+            
         """
-              Short exp integration
-        """
+        mana = Manager()
+        save_pytorch = None
+        
+        if mana.num_conf.gpu_acceleration:
+            save_pytorch = mana.num_conf.enable_pytorch
+            mana.num_conf.enable_pytorch = True
+            
+        if mana.num_conf.enable_pytorch:
+            ret =  self._propagate_SExp_RTOp_ReSymK_Re_pytorch(rhoi,
+                                        self.Hamiltonian,
+                                        self.RelaxationTensor,
+                                        self.dt, 
+                                        use_gpu=mana.num_conf.gpu_acceleration,
+                                        L=L)
+            
+            if save_pytorch is not None:
+                mana.num_conf.enable_pytorch = save_pytorch
+                
+            return ret
+        
+        else:
+            return self._propagate_SExp_RTOp_ReSymK_Re_numpy(rhoi,
+                                                 self.Hamiltonian,
+                                                 self.RelaxationTensor,
+                                                 self.dt, L=L)
+            
 
         pr = ReducedDensityMatrixEvolution(self.TimeAxis, rhoi,
                                            name=self.propagation_name)
@@ -463,12 +497,15 @@ class ReducedDensityMatrixPropagator(MatrixData, Saveable):
         
         HH = self.Hamiltonian.data  
         
-        #print("PROPAGATION")
+        qr.log_detail("PROPAGATION (short exponential with "+
+                     "relaxation in operator form): order ", L, 
+                     verbose=self.verbose)
+        qr.log_detail("Using complex numpy implementation")
         
         try:
-            Km = self.RelaxationTensor.Km
-            Lm = self.RelaxationTensor.Lm
-            Ld = self.RelaxationTensor.Ld
+            Km = self.RelaxationTensor.Km # real
+            Lm = self.RelaxationTensor.Lm # complex
+            Ld = self.RelaxationTensor.Ld # complex - get by transposition
             Kd = numpy.zeros(Km.shape, dtype=numpy.float64)
             Nm = Km.shape[0]
             for m in range(Nm):
@@ -478,37 +515,271 @@ class ReducedDensityMatrixPropagator(MatrixData, Saveable):
             
         indx = 1
 
-        for ii in range(1, self.Nt): 
-            #print(ii, "of", self.Nt)
+        levs = [qr.LOG_QUICK] #, 8]
+        verb = qr.loglevels2bool(levs)
+        
+        # loop over time
+        for ii in range(1, self.Nt):
+            qr.printlog(" time step ", ii, "of", self.Nt, 
+                        verbose=verb[0], loglevel=levs[0])
             
+            # steps in between saving the results
             for jj in range(0, self.Nref):
                 
+                # L interations to get short exponential expansion
                 for ll in range(1, L+1):
                     
                     rhoY =  - (1j*self.dt/ll)*(numpy.dot(HH,rho1) 
                                              - numpy.dot(rho1,HH))
                     
-                    rhoX = numpy.zeros(rho1.shape, dtype=numpy.complex128)
+                    #rhoX = numpy.zeros(rho1.shape, dtype=numpy.complex128)
                     for mm in range(Nm):
                         
-                       rhoX += (self.dt/ll)*(
+                       rhoY += (self.dt/ll)*(
                         numpy.dot(Km[mm,:,:],numpy.dot(rho1, Ld[mm,:,:]))
                        +numpy.dot(Lm[mm,:,:],numpy.dot(rho1, Kd[mm,:,:]))
                        -numpy.dot(numpy.dot(Kd[mm,:,:],Lm[mm,:,:]), rho1)
                        -numpy.dot(rho1, numpy.dot(Ld[mm,:,:],Km[mm,:,:]))
                        )
                              
-                    rho1 = rhoY + rhoX
+                    rho1 = rhoY #+ rhoX
                     
                     rho2 = rho2 + rho1
                 rho1 = rho2    
                 
             pr.data[indx,:,:] = rho2 
             indx += 1             
-            
-        #print("...DONE")
+             
+        qr.log_detail("...DONE")
+
         return pr
+
+
+    def _propagate_SExp_RTOp_ReSymK_Re_numpy(self, rhoi, Ham, RT, dt, L=4):
+        """Integration by short exponentional expansion
         
+        Integration by expanding exponential (_SExp_) to Lth order. 
+        This is a numpy (_numpy) implementation with real (_Re_) matrices
+        for  a system part of the system-bath interaction operator  ``K``
+        in a form of real symmetric operator (ReSymK). The relaxation tensor
+        is assumed in form of a set of operators (_RTOp_)
+              
+            
+        """
+
+        Nref = self.Nref
+        Nt = self.Nt
+        verbose = self.verbose
+        timea = self.TimeAxis
+        prop_name = self.propagation_name
+        
+        # no self beyond this point
+        
+        qr.log_detail("PROPAGATION (short exponential with "+
+                    "relaxation in operator form): order ", L, 
+                    verbose=verbose)
+        qr.log_detail("Using real valued numpy implementation")
+        
+        pr = ReducedDensityMatrixEvolution(timea, rhoi,
+                                           name=prop_name)
+        
+        rho1_r = numpy.real(rhoi.data)
+        rho2_r = numpy.real(rhoi.data)
+        rho1_i = numpy.imag(rhoi.data)
+        rho2_i = numpy.imag(rhoi.data)
+         
+        HH = Ham.data
+                
+        try:
+            Km = RT.Km #self.RelaxationTensor.Km # real
+            Lm_r = numpy.real(RT.Lm) #self.RelaxationTensor.Lm) # complex
+            Lm_i = numpy.imag(RT.Lm) #self.RelaxationTensor.Lm)
+            Nm = Km.shape[0]
+        except:
+            raise Exception("Tensor is not in operator form")
+            
+        indx = 1
+        
+        # verbosity inside loops
+        levs = [qr.LOG_QUICK] 
+        verb = qr.loglevels2bool(levs, verbose=self.verbose)
+        
+        # loop over time
+        for ii in range(1, Nt):
+            qr.printlog("time step ", ii, "of", Nt, 
+                        verbose=verb[0], loglevel=levs[0], end="\r")
+            
+            # steps in between saving the results
+            for jj in range(Nref):
+                
+                # L interations to get short exponential expansion
+                for ll in range(1, L+1):
+
+                    A = numpy.dot(HH,rho1_i)
+                    B = numpy.dot(HH,rho1_r)
+                    rhoY_r =  (dt/ll)*(A + numpy.transpose(A))
+                    rhoY_i = -(dt/ll)*(B - numpy.transpose(B)) 
+                    
+                    for mm in range(Nm):
+                    
+                        a = numpy.dot(Lm_r[mm,:,:], rho1_r)
+                        A = a - numpy.transpose(a)
+                        b = numpy.dot(Lm_i[mm,:,:], rho1_i)
+                        B = b - numpy.transpose(b)
+                        c = numpy.dot(Lm_r[mm,:,:], rho1_i)
+                        C = -(c + numpy.transpose(c))
+                        d = numpy.dot(Lm_i[mm,:,:], rho1_r)
+                        D = d + numpy.transpose(d)
+                        
+                        E = B - A
+                        F = C - D
+                        
+                        A = numpy.dot(Km[mm,:,:], E)
+                        B = numpy.dot(Km[mm,:,:], F)
+                        rhoY_r += (dt/ll)*(A + numpy.transpose(A))
+                        rhoY_i += (dt/ll)*(B - numpy.transpose(B))
+                        
+                    rho1_r = rhoY_r 
+                    rho1_i = rhoY_i
+                    
+                    rho2_r +=  rho1_r
+                    rho2_i +=  rho1_i
+                    
+                rho1_r = rho2_r
+                rho1_i = rho2_i
+                
+            pr.data[indx,:,:] = rho2_r + 1j*rho2_i 
+            indx += 1             
+        
+        qr.log_detail()
+        qr.log_detail("...DONE")
+
+        return pr
+
+    def _propagate_SExp_RTOp_ReSymK_Re_pytorch(self, rhoi, Ham, RT, dt,
+                                               use_gpu=False, L=4):
+        """Integration by short exponentional expansion
+        
+        Integration by expanding exponential (_SExp_) to Lth order. 
+        This is a PyTorch (_pytorch) implementation with real (_Re_) matrices
+        for  a system part of the system-bath interaction operator  ``K``
+        in a form of real symmetric operator (ReSymK). The relaxation tensor
+        is assumed in form of a set of operators (_RTOp_)
+              
+            
+        """
+
+        Nref = self.Nref
+        Nt = self.Nt
+        verbose = self.verbose
+        timea = self.TimeAxis
+        prop_name = self.propagation_name
+        
+        try: 
+            import torch
+        except:
+            raise Exception("PyTorch not installed")
+        
+        # no self beyond this point
+        
+        qr.log_detail("PROPAGATION (short exponential with "+
+                    "relaxation in operator form): order ", L, 
+                    verbose=verbose)
+        qr.log_detail("Using pytorch implementation")
+        qr.log_detail("Using GPU: ", use_gpu & torch.cuda.is_available())
+        
+        pr = ReducedDensityMatrixEvolution(timea, rhoi,
+                                           name=prop_name)
+        
+        rho1_r = torch.from_numpy(numpy.real(rhoi.data))
+        rho2_r = torch.from_numpy(numpy.real(rhoi.data))
+        rho1_i = torch.from_numpy(numpy.imag(rhoi.data))
+        rho2_i = torch.from_numpy(numpy.imag(rhoi.data))
+         
+        HH = torch.from_numpy(Ham.data)
+                
+        try:
+            Km = torch.from_numpy(RT.Km) #self.RelaxationTensor.Km # real
+            Lm_r = torch.from_numpy(numpy.real(RT.Lm)) #self.RelaxationTensor.Lm) # complex
+            Lm_i = torch.from_numpy(numpy.imag(RT.Lm)) #self.RelaxationTensor.Lm)
+            Nm = RT.Km.shape[0]
+        except:
+            raise Exception("Tensor is not in operator form")
+            
+        if use_gpu & torch.cuda.is_available():
+            rho1_r = rho1_r.cuda()
+            rho2_r = rho1_r
+            rho1_i = rho1_i.cuda()
+            rho2_i = rho1_i
+            HH = HH.cuda()
+            Km = Km.cuda()
+            Lm_r = Lm_r.cuda()
+            Lm_i = Lm_i.cuda()
+ 
+        indx = 1
+        
+        # verbosity inside loops
+        levs = [qr.LOG_QUICK] 
+        verb = qr.loglevels2bool(levs)
+        
+        # loop over time
+        for ii in range(1, Nt):
+            qr.printlog(" time step ", ii, "of", Nt, 
+                        verbose=verb[0], loglevel=levs[0])
+            
+            # steps in between saving the results
+            for jj in range(Nref):
+                
+                # L interations to get short exponential expansion
+                for ll in range(1, L+1):
+
+                    A = torch.matmul(HH,rho1_i)
+                    B = torch.matmul(HH,rho1_r)
+                    rhoY_r = torch.mul(A + torch.transpose(A, 0, 1), dt/ll)
+                    rhoY_i = torch.mul(B - torch.transpose(B, 0, 1), -dt/ll) 
+
+                    for mm in range(Nm):
+                    
+                        a = torch.matmul(Lm_r[mm,:,:], rho1_r)
+                        A = a - torch.transpose(a, 0, 1)
+                        b = torch.matmul(Lm_i[mm,:,:], rho1_i)
+                        B = b - torch.transpose(b, 0, 1)
+                        c = torch.matmul(Lm_r[mm,:,:], rho1_i)
+                        C = -(c + torch.transpose(c, 0, 1))
+                        d = torch.matmul(Lm_i[mm,:,:], rho1_r)
+                        D = d + torch.transpose(d, 0, 1)
+                        
+                        E = B - A
+                        F = C - D
+                        
+                        A = torch.matmul(Km[mm,:,:], E)
+                        B = torch.matmul(Km[mm,:,:], F)
+                        rhoY_r += torch.mul(A + torch.transpose(A, 0, 1),dt/ll)
+                        rhoY_i += torch.mul(B - torch.transpose(B, 0, 1),dt/ll)
+ 
+                    rho1_r = rhoY_r 
+                    rho1_i = rhoY_i
+                    
+                    rho2_r += rho1_r
+                    rho2_i += rho1_i
+                    
+                rho1_r = rho2_r
+                rho1_i = rho2_i
+            
+            if use_gpu & torch.cuda.is_available():
+                rho2_sr = rho2_r.cpu()
+                rho2_si = rho2_i.cpu()
+            else:
+                rho2_sr = rho2_r
+                rho2_si = rho2_i                
+    
+            pr.data[indx,:,:] = rho2_sr.numpy() + 1j*rho2_si.numpy() 
+            indx += 1             
+         
+        qr.log_detail("...DONE")
+        return pr
+
+
     def __propagate_short_exp_with_TD_relaxation(self,rhoi,L=4):
         """
               Short exp integration
