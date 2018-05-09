@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """
+
     Quantarhei package (http://www.github.com/quantarhei)
 
     dfucntion module
