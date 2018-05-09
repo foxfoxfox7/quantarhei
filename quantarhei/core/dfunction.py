@@ -505,11 +505,15 @@ class DFunction(Saveable):
 
             elif t.atype == "upper-half":
 
-                # FIXME: this is a temporary fix - whole this part needs
+                # this is a temporary fix - whole this part needs
                 # rethinking
                 y = numpy.zeros(t.length,dtype=numpy.complex128)
-                y[0:t.length-1] = Y[t.length+1:2*t.length]
-                y[t.length-1] = 0.0
+                
+                # Vlada's suggestion
+                #y[0:t.length-1] = Y[t.length+1:2*t.length]
+                #y[t.length-1] = 0.0
+                
+                y[0:t.length] = Y[t.length:2*t.length]
                 F = DFunction(t, y)
 
             else:
@@ -534,11 +538,16 @@ class DFunction(Saveable):
              text_font=None,
              real_only=True,
              show=True,
+<<<<<<< HEAD
              color=None, conf=None):
+=======
+             color=None, filename="ahoj.png"):
+>>>>>>> master
         """Plotting of the DFunction's data against the ValueAxis
 
         """
         
+<<<<<<< HEAD
         if conf is None:
             self.plotconf = PlotConfiguration()
         else:
@@ -564,6 +573,8 @@ class DFunction(Saveable):
         #
         # Color(s)
         #
+=======
+>>>>>>> master
         if color is not None:
             if len(color) == 1:
                 clr = [color, color]
@@ -633,6 +644,18 @@ class DFunction(Saveable):
         #
         if show:
             plt.show()
+            
+            
+    def savefig(self, filename):
+        """Saves current figure into a file
+        
+        
+        """
+        
+        fig = plt.gcf()
+        fig.savefig(filename, bbox_inches='tight')
+        
+        
 
     def _fname_ext(self, filename, ext):
         """

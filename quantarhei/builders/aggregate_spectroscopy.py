@@ -691,6 +691,12 @@ class AggregateSpectroscopy(AggregateBase):
             
             
         """
+        if self._diagonalized:
+            if verbose > 0:
+                print("Diagonalizing aggregate")
+            self.diagonalize()
+            if verbose > 0:
+                print("..done")
         
         pop_tol = ptol
         dip_tol = numpy.sqrt(self.D2_max)*dtol
@@ -720,11 +726,11 @@ class AggregateSpectroscopy(AggregateBase):
 
             if ptp == "R3g":
             
-                generate_R3g(self, lst, pop_tol, dip_tol, verbose)
+                generate_R3g(self, lst, eUt2, pop_tol, dip_tol, verbose)
                 
             if ptp == "R4g":
                 
-                generate_R4g(self, lst, pop_tol, dip_tol, verbose)
+                generate_R4g(self, lst, eUt2, pop_tol, dip_tol, verbose)
                 
             
             if ptp == "R1f*":
@@ -993,7 +999,7 @@ def generate_R2g(self, lst, eUt2, pop_tol, dip_tol, evf_tol, verbose=0):
                     
 
 
-def generate_R3g(self, lst, pop_tol, dip_tol, verbose=0):
+def generate_R3g(self, lst, eUt2, pop_tol, dip_tol, verbose=0):
 
     ngs = self.get_electronic_groundstate()
     nes = self.get_excitonic_band(band=1)
@@ -1025,6 +1031,8 @@ def generate_R3g(self, lst, pop_tol, dip_tol, verbose=0):
                     for i3g in ngs:
                     
                         if self.D2[i3g,i2e] > dip_tol:
+                            
+                            evf = eUt2.data[i1g, i3g, i1g, i3g]
                     
                             for i4e in nes:
                 
@@ -1085,6 +1093,8 @@ def generate_R3g(self, lst, pop_tol, dip_tol, verbose=0):
                                                                   deph=deph3)
                                         # |g_i3> <g_i3|
             
+                                        lp.set_evolution_factor(evf)
+            
                                     except:
 
                                         raise Exception("Generation of pathway failed")
@@ -1094,7 +1104,7 @@ def generate_R3g(self, lst, pop_tol, dip_tol, verbose=0):
                                     k += 1
 
 
-def generate_R4g(self, lst, pop_tol, dip_tol, verbose=0):
+def generate_R4g(self, lst, eUt2, pop_tol, dip_tol, verbose=0):
     
     ngs = self.get_electronic_groundstate()
     nes = self.get_excitonic_band(band=1)
@@ -1125,6 +1135,8 @@ def generate_R4g(self, lst, pop_tol, dip_tol, verbose=0):
 
                         if self.D2[i3g,i2e] > dip_tol:
                     
+                            evf = eUt2.data[i1g, i3g, i1g, i3g]
+
                             for i4e in nes:
 
                                 if ((self.D2[i4e,i3g] > dip_tol)
@@ -1183,6 +1195,8 @@ def generate_R4g(self, lst, pop_tol, dip_tol, verbose=0):
                                                                   width=width3, 
                                                                   deph=deph3)
                                         #      |g_i1> <g_i1|
+                                        
+                                        lp.set_evolution_factor(evf)
             
                                     except:
                                         

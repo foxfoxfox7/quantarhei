@@ -32,7 +32,6 @@ from ..core.saveable import Saveable
 class AbsSpectrumBase(DFunction, EnergyUnitsManaged):
     """Provides basic container for absorption spectrum
     
-    
     """
     
     def __init__(self, axis=None, data=None):
@@ -181,7 +180,7 @@ class AbsSpectrumBase(DFunction, EnergyUnitsManaged):
     
         
         
-    def plot(self,**kwargs):
+    def plot(self, **kwargs):
         """ Plotting absorption spectrum using the DFunction plot method
         
         """
@@ -189,7 +188,9 @@ class AbsSpectrumBase(DFunction, EnergyUnitsManaged):
             ylabel = r'$\alpha(\omega)$ [a.u.]'
             kwargs["ylabel"] = ylabel
             
-        super().plot(**kwargs)
+        fig = super().plot(**kwargs)
+        if fig is not None:
+            return fig
 
 
         
@@ -702,7 +703,7 @@ class AbsSpectrumCalculator(EnergyUnitsManaged):
             at *= rt
             #print("Constant: ", rt[20], len(at))
         else:
-            rt = numpy.exp(gg*ta.data)          
+            rt = numpy.exp((gg)*ta.data)          
             at *= rt
             #print("Time dependent: len = ", rt[20], len(rt))
             
