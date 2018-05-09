@@ -23,9 +23,6 @@ tempfile
 .cache
 result_images
 qrconf.py
-docs/sphinx/_build/*
-
-
-
+docs/sphinx/_build/
 
 *.swp
