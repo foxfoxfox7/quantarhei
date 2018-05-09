@@ -36,12 +36,14 @@ class Molecule(UnitsManaged, Saveable):
 
     The molecule is defined by the vector of energies of its states
     and by the transition dipole moments between allowed transitions.
-    
+
+
     Parameters
     ----------
     
     name : str
         Monomer descriptor; a string identifying the monomer
+
     elenergies : list of real numbers
         List of electronic energies, one per state. It includes ground state
         energy. It wise to chose the ground state energy as zero. 
@@ -73,7 +75,7 @@ class Molecule(UnitsManaged, Saveable):
     # transition dipole moments
     dmoments = array_property('dmoments')    
     
-    # number of electronic states
+    # number of electronic statesarray_property
     nel      = Integer('nel')
     # number of allowed transitions
     nal      = Integer('nal')
@@ -104,16 +106,16 @@ class Molecule(UnitsManaged, Saveable):
         
         
         
-        # FIXME: check the order of energies (increasing order has to be enforced)        
-        # no vibrational modes is a defauls
+        # FIXME: check the order of energies (increasing order has 
+        # to be enforced) no vibrational modes is a defauls
         self.nmod = 0
         self.modes = []  
         
         # allowed transitions are now only between the ground state and
-        # the rest of the excited states
+        # the rest of the excited states are dark
         self.allowed_transitions = []
          
-        
+        # transition dipole moments
         self.dmoments = numpy.zeros((self.nel,self.nel,3)) 
         
         # matrix of the transition widths
@@ -193,7 +195,7 @@ class Molecule(UnitsManaged, Saveable):
             A tuple describing a transition in the molecule, e.g. (0,1) is
             a transition from the ground state to the first excited state.
             
-        correlation_matrix : cu.oqs.correlationfunctions.CorrelationFunctionMatrix
+        correlation_matrix : CorrelationFunctionMatrix
             An instance of CorrelationFunctionMatrix
             
         position : int
@@ -276,8 +278,7 @@ class Molecule(UnitsManaged, Saveable):
                                            
             self._has_egcf[self.triangle.locate(transition[0],
                                                 transition[1])] = False
-                                                
-
+        
     #@deprecated
     def set_egcf(self, transition, egcf):
         self.set_transition_environment(transition, egcf)
@@ -645,7 +646,8 @@ class Molecule(UnitsManaged, Saveable):
                     if self._has_adiabatic[self.triangle.locate(i,j)]:
                         J = self.get_adiabatic_coupling(i,j)
                         hj = numpy.zeros((ldim[i],ldim[j]),dtype=numpy.float)
-                        # FIXME: this works only if the frequencies of the oscillators are the same
+                        # FIXME: this works only if the frequencies
+                        # of the oscillators are the same
                         for k in range(min([ldim[i],ldim[j]])):
                             hj[k,k] = J
                         ham[lb[i]:ub[i],lb[j]:ub[j]] = hj
@@ -759,7 +761,8 @@ class Molecule(UnitsManaged, Saveable):
                                               # the baths
                     else:
                         where[eg] = [(nob,nob)]
-                    # for each bath, save the state of the traprint(mols_c2)  nsition g -> j
+                    # for each bath, save the state of the traprint(mols_c2)
+                    # nsition g -> j
                     d[nob] = j
                         
                     nob += 1
@@ -805,8 +808,7 @@ class Molecule(UnitsManaged, Saveable):
 #            for w in wr:
 #                char = d[w[0]]
 #                print("fce ",el, " is a bath no.", w[0]," of ",char)
-                
-            cfm.set_correlation_function(i+1,el,wr)
+            cfm.set_correlation_function(el,wr,i+1)
 
         #
         # System operators corresponding to the correlation functions
@@ -865,7 +867,7 @@ class Molecule(UnitsManaged, Saveable):
         return SystemBathInteraction(sys_operators,cfm)
         
     
-    def set_mode_environment(self,mode=0,elstate=0,corfunc=None):
+    def set_mode_environment(self, mode=0, elstate=0, corfunc=None):
         """Sets mode environment 
         
         
