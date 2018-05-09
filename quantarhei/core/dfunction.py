@@ -538,16 +538,12 @@ class DFunction(Saveable):
              text_font=None,
              real_only=True,
              show=True,
-<<<<<<< HEAD
-             color=None, conf=None):
-=======
+             conf=None,
              color=None, filename="ahoj.png"):
->>>>>>> master
         """Plotting of the DFunction's data against the ValueAxis
 
         """
         
-<<<<<<< HEAD
         if conf is None:
             self.plotconf = PlotConfiguration()
         else:
@@ -573,8 +569,6 @@ class DFunction(Saveable):
         #
         # Color(s)
         #
-=======
->>>>>>> master
         if color is not None:
             if len(color) == 1:
                 clr = [color, color]
