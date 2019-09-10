@@ -184,7 +184,11 @@ class AbsSpectrumCalculator(EnergyUnitsManaged):
             rt = numpy.exp((gg)*ta.data)          
             at *= rt
             #print("Time dependent: len = ", rt[20], len(rt))
-            
+        
+        response = open("response.txt", "w")
+        for i, res in enumerate(at):
+            response.write(str(res.real) + '\t' + str(res.imag) + '\t' + str(ta.data[i]) + "\n")
+
         # Fourier transform the result
         ft = dd*numpy.fft.hfft(at)*ta.step
         ft = numpy.fft.fftshift(ft)
