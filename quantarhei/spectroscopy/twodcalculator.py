@@ -211,6 +211,16 @@ class TwoDResponseCalculator:
             SS1 = SS[1:Ns[1]+1,1:Ns[1]+1]
             SS2 = SS[Ns[1]+1:,Ns[1]+1:]
             H.undiagonalize()
+
+            with open('transData.txt', 'a') as f:
+                f.write('Hamiltonian\n')
+                numpy.savetxt(f, agg.HH[1:Ns[1]+1,1:Ns[1]+1])
+                aggD = self.system
+                aggD.diagonalize()
+                f.write('Diagonalized\n')
+                numpy.savetxt(f, aggD.HH[1:Ns[1]+1,1:Ns[1]+1])
+                f.write('Transformation Matrix\n')
+                numpy.savetxt(f, SS1)
             
             self.sys.set_gofts(cfm._gofts)    # line shape functions
             self.sys.set_sitep(cfm.cpointer)  # pointer to sites
@@ -220,9 +230,13 @@ class TwoDResponseCalculator:
             #
             # Finding population evolution matrix
             #
-            prop = PopulationPropagator(self.t1axis, Kr)
+            t1Len = int(((self.t1axis.length-1)*self.t1axis.step)+1)
+            t2propAxis = TimeAxis(0.0, t1Len, 1)
+            #prop = PopulationPropagator(self.t1axis, Kr)
+            prop = PopulationPropagator(t2propAxis, Kr)
       #      Uee, Uc0 = prop.get_PropagationMatrix(self.t2axis,
       #                                            corrections=True)
+
             self.Uee, cor = prop.get_PropagationMatrix(self.t2axis,
                                                   corrections=3)
 
@@ -323,6 +337,16 @@ class TwoDResponseCalculator:
         # ESA
         nr3td.nr3_r1fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_r)
         nr3td.nr3_r2fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_n)
+
+        resp_Resa = numpy.zeros((Nr1, Nr3), 
+                             dtype=numpy.complex128, order='F')
+        resp_Nesa = numpy.zeros((Nr1, Nr3), 
+                             dtype=numpy.complex128, order='F')
+        # ESA
+        nr3td.nr3_r1fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_Resa)
+        nr3td.nr3_r2fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_Nesa)
+        #numpy.savetxt('respResa.txt', resp_Resa.real)
+        #numpy.savetxt('respNesa.txt', resp_Nesa.real)
         
         #
         # Transfer
@@ -348,6 +372,9 @@ class TwoDResponseCalculator:
         t2 = time.time()
         self._vprint("... calculated in "+str(t2-t1)+" sec")
 
+        #numpy.savetxt('respR.txt', resp_r.real)
+        #numpy.savetxt('respN.txt', resp_n.real)
+        #numpy.savetxt('timeData.txt', self.t1axis.data)
 
         #
         # Calculate corresponding 2D spectrum
@@ -366,10 +393,12 @@ class TwoDResponseCalculator:
         onetwod.set_axis_1(self.oa1)
         onetwod.set_axis_3(self.oa3)
         onetwod.set_resolution("signals")
-        onetwod._add_data(reph2D, dtype=signal_REPH)
-        onetwod._add_data(nonr2D, dtype=signal_NONR)
+        #onetwod._add_data(reph2D, dtype=signal_REPH)
+        #onetwod._add_data(nonr2D, dtype=signal_NONR)
         #onetwod.set_data(reph2D, dtype="Reph")
         #onetwod.set_data(nonr2D, dtype="Nonr")
+        onetwod.set_data(reph2D, dtype=signal_REPH)
+        onetwod.set_data(nonr2D, dtype=signal_NONR)
         
         onetwod.set_t2(self.t2axis.data[tc])
         
