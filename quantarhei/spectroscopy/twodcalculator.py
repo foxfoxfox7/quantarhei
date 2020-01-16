@@ -325,7 +325,7 @@ class TwoDResponseCalculator:
 
         t1 = time.time()
         
-        self._vprint(" - ground state bleach")
+        #self._vprint(" - ground state bleach")
         # GSB
         nr3td.nr3_r3g(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_r) 
         nr3td.nr3_r4g(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_n)
@@ -395,12 +395,12 @@ class TwoDResponseCalculator:
         onetwod.set_axis_1(self.oa1)
         onetwod.set_axis_3(self.oa3)
         onetwod.set_resolution("signals")
-        #onetwod._add_data(reph2D, dtype=signal_REPH)
-        #onetwod._add_data(nonr2D, dtype=signal_NONR)
+        onetwod._add_data(reph2D, dtype=signal_REPH)
+        onetwod._add_data(nonr2D, dtype=signal_NONR)
         #onetwod.set_data(reph2D, dtype="Reph")
         #onetwod.set_data(nonr2D, dtype="Nonr")
-        onetwod.set_data(reph2D, dtype=signal_REPH)
-        onetwod.set_data(nonr2D, dtype=signal_NONR)
+        #onetwod.set_data(reph2D, dtype=signal_REPH)
+        #onetwod.set_data(nonr2D, dtype=signal_NONR)
         
         onetwod.set_t2(self.t2axis.data[tc])
         
@@ -417,12 +417,14 @@ class TwoDResponseCalculator:
         
         
         """            
-        from .twodcontainer import TwoDSpectrumContainer
+        #from .twodcontainer import TwoDSpectrumContainer
+        from .twodcontainer import TwoDResponseContainer
                    
         if _have_aceto:
-
-            twods = TwoDSpectrumContainer(self.t2axis)
             
+            #twods = TwoDSpectrumContainer(self.t2axis)
+            twods = TwoDResponseContainer(self.t2axis)
+
             teetoos = self.t2axis.data
             for tt2 in teetoos:
 
@@ -435,7 +437,8 @@ class TwoDResponseCalculator:
             
             # fall back on quantarhei's own implementation
         
-            ret = TwoDSpectrumContainer()
+            #ret = TwoDSpectrumContainer()
+            ret = TwoDResponseContainer()
             
         
         return ret

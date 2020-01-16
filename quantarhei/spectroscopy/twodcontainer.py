@@ -241,8 +241,10 @@ class TwoDResponseContainer(Saveable):
             
             
         """        
+
+        #print('GETTING THE SPECTRUM - twodcontainer')
         if self.itype in ["integer"]:
-            
+
             return self.spectra[tag]
             
         elif self.itype in ["string"]:
@@ -284,6 +286,7 @@ class TwoDResponseContainer(Saveable):
         """Returns a container with specific spectra
         
         """
+        #print('GETTING TWOD SPECTRUM CONTAINER - twodcontainer')
         if self.itype in ["ValueAxis", "TimeAxis", "FrequencyAxis"]:
             axis = self.axis.deepcopy()
         
@@ -293,6 +296,7 @@ class TwoDResponseContainer(Saveable):
                 sp = self.get_spectrum(val)
                 nsp = sp.get_TwoDSpectrum(dtype=stype)
                 cont.set_spectrum(nsp, tag=val)
+                #cont.set_spectrum(sp, tag=val)
                 
             return cont
         
@@ -300,6 +304,27 @@ class TwoDResponseContainer(Saveable):
             
             raise Exception("")
             
+    def get_TwoDSpectrumContainer_FromCalc(self, stype=signal_TOTL):
+        """Returns a container with specific spectra
+        
+        """
+        print('GETTING TWOD SPECTRUM CONTAINER FROM CALC - twodcontainer')
+        if self.itype in ["ValueAxis", "TimeAxis", "FrequencyAxis"]:
+            axis = self.axis.deepcopy()
+        
+            cont = TwoDSpectrumContainer(axis)
+        
+            for val in self.axis.data:
+                sp = self.get_spectrum(val)
+                nsp = sp.get_TwoDSpectrum_FromCalc(dtype=stype)
+                cont.set_spectrum(nsp, tag=val)
+                #cont.set_spectrum(sp, tag=val)
+                
+            return cont
+        
+        else:
+            
+            raise Exception("")
 
     def get_nearest(self, val):
         
@@ -629,7 +654,7 @@ class TwoDResponseContainer(Saveable):
         axdir.attrs.create("step",ax.step)
 
 
-    def _load_axis(self, rt, name):
+    def _loa_axis(self, rt, name):
         axdir = rt[name]
         start = axdir.attrs["start"]
         length = axdir.attrs["length"]

@@ -782,6 +782,8 @@ class TwoDSpectrumBase(DataSaveable):
     # FIMXE: to be relaced
     def add_data(self, data, dtype=signal_TOTL): #"Tot"):
         
+        #print('THIS IS TWOD2')
+
         if dtype is None:
             if dtype in self.dtypes:
                 self.dtype = dtype
@@ -1604,6 +1606,7 @@ class TwoDResponse(TwoDSpectrumBase, Saveable):
         """Returns a 2D spectrum based on this response
         
         """
+        #print('GET TWO D SPECTRUM - twod2')
         if dtype is None:
             dtype = signal_TOTL
         twod = TwoDSpectrum()
@@ -1615,10 +1618,32 @@ class TwoDResponse(TwoDSpectrumBase, Saveable):
         twod.set_data_type(dtype)
         self.set_data_flag(dtype)
         twod.set_data(self.d__data[:,:])
+        #twod.set_data(self.data[:,:])
 
         return twod
 
+    def get_TwoDSpectrum_FromCalc(self, dtype=None):
+        """Returns a 2D spectrum based on this response
+        
+        """
+        #print('GET TWO D SPECTRUM FROM CALC - twod2')
+        if dtype is None:
+            dtype = signal_TOTL
+        twod = TwoDSpectrum()
+        twod.set_axis_1(self.xaxis.copy())
+        twod.set_axis_3(self.yaxis.copy())
+        
+        twod.set_t2(self.t2)
+        
+        twod.set_data_type(dtype)
+        self.set_data_flag(dtype)
+        
+        twod.data = self.reph2D
+        twod.data += self.nonr2D
 
+        return twod
+
+    
     def plot(self, fig=None, window=None, 
              stype=_total, spart=part_REAL,
              vmax=None, vmin_ratio=0.5, 
@@ -1887,7 +1912,165 @@ class TwoDResponse(TwoDSpectrumBase, Saveable):
         #
         if savefig:
             self.savefig(savefig)
+    '''
 
+    def plot(self, fig=None, window=None, stype="total", spart="real",
+             vmax=None, vmin=None, vmin_ratio=0.5, 
+             colorbar=True, colorbar_loc="right",
+             cmap=None, Npos_contours=10,
+             show_states=None,
+             text_loc=[0.05,0.9], fontsize="20", label=None, zero_contour=True,
+             plot_units=r'cm$^{-1}$'):
+        """Plots the 2D spectrum
+        
+        Parameters
+        ----------
+        
+        fig : matplotlib.figure
+            Figure into which plotting will be done. This is used e.g. when
+            making a movie using moview writter (may be obsolete)
+            
+        window : list
+            Specifies the plotted window in current energy units. When axes
+            are x and y, the window is specified as window=[x_min,x_max,y_min,y_max]
+            
+        stype : {"total", "rephasing", "non-rephasing"}
+            type of the spectrum 
+            
+            
+        """
+        
+        if stype == "total":
+            if (self.reph2D is not None) and (self.nonr2D is not None):
+                spect2D = self.reph2D + self.nonr2D 
+            elif self.reph2D is not None:
+                spect2D = self.reph2D 
+            elif self.nonr2D is not None:
+                spect2D = self.nonr2D
+                
+            
+        elif stype == "rephasing":
+            spect2D = self.reph2D
+        elif stype == "non-rephasing":
+            spect2D = self.nonr2D            
+        else:
+            raise Exception("Undefined spectrum type"+stype)
+        
+        if spart == "real":
+            spect2D = numpy.real(spect2D)
+        elif spart == "imaginary":
+            spect2D = numpy.imag(spect2D)
+        elif spart == "abs":
+            spect2D = numpy.abs(spect2D)
+        else:
+            raise Exception("Undefined part of the spectrum: "+spart)
+         
+            
+        if window is not None: 
+            axis = window
+            w1_min = axis[0]
+            w1_max = axis[1]
+            w3_min = axis[2]
+            w3_max = axis[3]
+
+            (i1_min, dist) = self.xaxis.locate(w1_min)
+            (i1_max, dist) = self.xaxis.locate(w1_max)
+
+            (i3_min, dist) = self.yaxis.locate(w3_min)
+            (i3_max, dist) = self.yaxis.locate(w3_max)   
+            
+        else:
+            i1_min = 0
+            i1_max = self.xaxis.length
+            i3_min = 0
+            i3_max = self.yaxis.length
+            
+    
+        #
+        # Plotting with given units on axes
+        #
+  
+        realout = spect2D[i3_min:i3_max,i1_min:i1_max]
+    
+        if fig is None:
+            fig, ax = plt.subplots(1,1)
+        else:
+            fig.clear()
+            fig.add_subplot(1,1,1)
+            ax = fig.axes[0]
+            
+        if cmap is None:
+            cmap = plt.cm.rainbow
+            
+        if vmax is None:
+            vmax = numpy.amax(realout)
+
+        if vmin is None:
+            vmin = numpy.amin(realout)
+        
+        #if vmin < -vmax*vmin_ratio:
+        #    vmax = -vmin
+        #else:
+        #    vmin = -vmax*vmin_ratio
+        
+        Npos = Npos_contours
+        poslevels = [i*vmax/Npos for i in range(1, Npos)]
+        neglevels = [-i*vmax/Npos for i in range(Npos,1,-1)]
+        
+        levo = self.xaxis.data[i1_min]
+        prvo = self.xaxis.data[i1_max-1]
+        dole = self.yaxis.data[i3_min]
+        hore = self.yaxis.data[i3_max-1]
+        
+        cm = plt.imshow(realout, extent=[self.xaxis.data[i1_min],
+                                    self.xaxis.data[i1_max-1],
+                                    self.yaxis.data[i3_min],
+                                    self.yaxis.data[i3_max-1]],
+                   origin='lower', vmax=vmax, vmin=vmin,
+                   interpolation='bilinear', cmap=cmap)  
+        
+        pos = text_loc
+        
+        # text
+        if label is not None:
+            label = label    
+            ax.text((prvo-levo)*pos[0]+levo,
+                (hore-dole)*pos[1]+dole,
+                label,
+                fontsize=str(fontsize))
+        
+        #axis labels
+        plt.xlabel(r'$\omega_{1}$ ('+plot_units+')')
+        plt.ylabel(r'$\omega_{3}$ ('+plot_units+')')
+        # positive contours
+        plt.contour(self.xaxis.data[i1_min:i1_max],
+                     self.yaxis.data[i3_min:i3_max],
+                     realout, levels=poslevels, colors="k",
+                     linewidth=1)
+        
+        if zero_contour:
+            # zero contour
+            plt.contour(self.xaxis.data[i1_min:i1_max],
+                         self.yaxis.data[i3_min:i3_max],
+                         realout, levels=[0],colors="b",
+                         linewidth=1)
+        
+        # negatove contours
+        plt.contour(self.xaxis.data[i1_min:i1_max],
+                     self.yaxis.data[i3_min:i3_max],
+                     realout, levels=neglevels,colors="k",
+                     linewidth=1)  
+        
+        
+        if colorbar:
+            plt.clim(vmin=vmin,vmax=vmax)
+            fig.colorbar(cm)
+            
+        if show_states is not None:
+            for en in show_states:  
+                plt.plot([en,en],[dole,hore],'--k',linewidth=1.0)
+                plt.plot([levo,prvo],[en,en],'--k',linewidth=1.0)
+    '''
             
     def show(self):
         """Show the plot of 2D spectrum
