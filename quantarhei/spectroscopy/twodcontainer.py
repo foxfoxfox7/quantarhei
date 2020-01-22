@@ -304,27 +304,6 @@ class TwoDResponseContainer(Saveable):
             
             raise Exception("")
             
-    def get_TwoDSpectrumContainer_FromCalc(self, stype=signal_TOTL):
-        """Returns a container with specific spectra
-        
-        """
-        print('GETTING TWOD SPECTRUM CONTAINER FROM CALC - twodcontainer')
-        if self.itype in ["ValueAxis", "TimeAxis", "FrequencyAxis"]:
-            axis = self.axis.deepcopy()
-        
-            cont = TwoDSpectrumContainer(axis)
-        
-            for val in self.axis.data:
-                sp = self.get_spectrum(val)
-                nsp = sp.get_TwoDSpectrum_FromCalc(dtype=stype)
-                cont.set_spectrum(nsp, tag=val)
-                #cont.set_spectrum(sp, tag=val)
-                
-            return cont
-        
-        else:
-            
-            raise Exception("")
 
     def get_nearest(self, val):
         

@@ -2,6 +2,7 @@
 
 import numpy
 import time
+import os
 
 from ..utils import derived_type
 from ..builders.aggregates import Aggregate
@@ -110,13 +111,21 @@ class TwoDResponseCalculator:
         if self.verbose:
             print(string)
             
-    def bootstrap(self, rwa=0.0, lab=None, verbose=False):
+    def bootstrap(self, rwa=0.0, pad = 0, lab=None, verbose=False, printEigen = False, printResp = False):
         """Sets up the environment for 2D calculation
         
         """
 
 
         self.verbose = verbose
+        self.pad = pad
+        self.printResp = printResp
+
+        if self.printResp:
+            try:
+                os.mkdir(printResp)
+            except OSError:
+                print ("Creation of the directory failed, it either already exists or you didn't give a string")
     
     
         if True:
@@ -213,16 +222,20 @@ class TwoDResponseCalculator:
             SS2 = SS[Ns[1]+1:,Ns[1]+1:]
             H.undiagonalize()
 
-            with open('transData.txt', 'a') as f:
-                f.write('Hamiltonian\n')
-                numpy.savetxt(f, agg.HH[1:Ns[1]+1,1:Ns[1]+1])
-                aggD = self.system
-                aggD.diagonalize()
-                f.write('Diagonalized\n')
-                numpy.savetxt(f, aggD.HH[1:Ns[1]+1,1:Ns[1]+1])
-                f.write('Transformation Matrix\n')
-                numpy.savetxt(f, SS1)
+
+            # KIERAN ADDED: printing the exciton details
+            if printEigen:
+                with open('transData.txt', 'a') as f:
+                    f.write('Hamiltonian\n')
+                    numpy.savetxt(f, agg.HH[1:Ns[1]+1,1:Ns[1]+1])
+                    aggD = self.system
+                    aggD.diagonalize()
+                    f.write('Diagonalized\n')
+                    numpy.savetxt(f, aggD.HH[1:Ns[1]+1,1:Ns[1]+1])
+                    f.write('Transformation Matrix\n')
+                    numpy.savetxt(f, SS1)
             
+
             self.sys.set_gofts(cfm._gofts)    # line shape functions
             self.sys.set_sitep(cfm.cpointer)  # pointer to sites
             self.sys.set_transcoef(1,SS1)  # matrix of transformation coefficients  
@@ -231,7 +244,8 @@ class TwoDResponseCalculator:
             #
             # Finding population evolution matrix
             #
-            t1Len = int(((self.t1axis.length-1)*self.t1axis.step)+1)
+            # KIERAN ADDED: fine step for the axis for calculating dynamics
+            t1Len = int(((self.t1axis.length + self.pad-1)*self.t1axis.step)+1)
             t2propAxis = TimeAxis(0.0, t1Len, 1)
             #prop = PopulationPropagator(self.t1axis, Kr)
             prop = PopulationPropagator(t2propAxis, Kr)
@@ -295,8 +309,10 @@ class TwoDResponseCalculator:
         
     def calculate_next(self):
 
+
         sone = self.calculate_one(self.tc)
         self.tc += 1
+
         return sone
     
         
@@ -340,13 +356,13 @@ class TwoDResponseCalculator:
         nr3td.nr3_r1fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_r)
         nr3td.nr3_r2fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_n)
 
-        resp_Resa = numpy.zeros((Nr1, Nr3), 
-                             dtype=numpy.complex128, order='F')
-        resp_Nesa = numpy.zeros((Nr1, Nr3), 
-                             dtype=numpy.complex128, order='F')
+        #resp_Resa = numpy.zeros((Nr1, Nr3), 
+        #                     dtype=numpy.complex128, order='F')
+        #resp_Nesa = numpy.zeros((Nr1, Nr3), 
+        #                     dtype=numpy.complex128, order='F')
         # ESA
-        nr3td.nr3_r1fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_Resa)
-        nr3td.nr3_r2fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_Nesa)
+        #nr3td.nr3_r1fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_Resa)
+        #nr3td.nr3_r2fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_Nesa)
         #numpy.savetxt('respResa.txt', resp_Resa.real)
         #numpy.savetxt('respNesa.txt', resp_Nesa.real)
         
@@ -374,37 +390,60 @@ class TwoDResponseCalculator:
         t2 = time.time()
         self._vprint("... calculated in "+str(t2-t1)+" sec")
 
-        #numpy.savetxt('respR.txt', resp_r.real)
-        #numpy.savetxt('respN.txt', resp_n.real)
-        #numpy.savetxt('timeData.txt', self.t1axis.data)
+        # KIERAN ADDED: Printing the responses into names directories
+        if self.printResp:
+            numpy.savetxt('./' + self.printResp + '/respR_t' + str(int(tt2)) + '.txt', resp_r.real)
+            numpy.savetxt('./' + self.printResp + '/respN_t' + str(int(tt2)) + '.txt', resp_n.real)
+            numpy.savetxt('./' + self.printResp + '/timeData.txt', self.t1axis.data)
 
         #
         # Calculate corresponding 2D spectrum
         #
         
-        ftresp = numpy.fft.fft(resp_r,axis=1)
-        ftresp = numpy.fft.ifft(ftresp,axis=0)
-        reph2D = numpy.fft.fftshift(ftresp)
-        
-        ftresp = numpy.fft.ifft(resp_n,axis=1)
-        ftresp = numpy.fft.ifft(ftresp,axis=0)*ftresp.shape[1]
-        nonr2D = numpy.fft.fftshift(ftresp)
-
-
         onetwod = TwoDResponse()
-        onetwod.set_axis_1(self.oa1)
-        onetwod.set_axis_3(self.oa3)
+        
+        # KIERAN ADDED: Pads the data with zeroes and lengthens the axis accordingly
+        if self.pad > 0:
+            print('padding by - ', self.pad)
+            t13Pad = TimeAxis(self.t1axis.start, self.t1axis.length + self.pad, self.t1axis.step)
+            t13Pad.atype = 'complete'
+            t13PadFreq = t13Pad.get_FrequencyAxis()
+            t13PadFreq.data += self.rwa
+            t13PadFreq.start += self.rwa
+
+            onetwod.set_axis_1(t13PadFreq)
+            onetwod.set_axis_3(t13PadFreq)
+
+            resp_rB = numpy.hstack((resp_r, numpy.zeros((resp_r.shape[0], self.pad))))
+            resp_rC = numpy.vstack((resp_rB, numpy.zeros((self.pad, resp_rB.shape[1]))))
+            resp_nB = numpy.hstack((resp_n, numpy.zeros((resp_n.shape[0], self.pad))))
+            resp_nC = numpy.vstack((resp_nB, numpy.zeros((self.pad, resp_nB.shape[1]))))
+
+            ftresp = numpy.fft.fft(resp_rC,axis=1)
+            ftresp = numpy.fft.ifft(ftresp,axis=0)
+            reph2D = numpy.fft.fftshift(ftresp)
+            
+            ftresp = numpy.fft.ifft(resp_nC,axis=1)
+            ftresp = numpy.fft.ifft(ftresp,axis=0)*ftresp.shape[1]
+            nonr2D = numpy.fft.fftshift(ftresp)
+        else:
+            onetwod.set_axis_1(self.oa1)
+            onetwod.set_axis_3(self.oa3)
+
+            ftresp = numpy.fft.fft(resp_r,axis=1)
+            ftresp = numpy.fft.ifft(ftresp,axis=0)
+            reph2D = numpy.fft.fftshift(ftresp)
+            
+            ftresp = numpy.fft.ifft(resp_n,axis=1)
+            ftresp = numpy.fft.ifft(ftresp,axis=0)*ftresp.shape[1]
+            nonr2D = numpy.fft.fftshift(ftresp)
+
         onetwod.set_resolution("signals")
         onetwod._add_data(reph2D, dtype=signal_REPH)
         onetwod._add_data(nonr2D, dtype=signal_NONR)
-        #onetwod.set_data(reph2D, dtype="Reph")
-        #onetwod.set_data(nonr2D, dtype="Nonr")
-        #onetwod.set_data(reph2D, dtype=signal_REPH)
-        #onetwod.set_data(nonr2D, dtype=signal_NONR)
-        
+
         onetwod.set_t2(self.t2axis.data[tc])
-        
-        
+
         return onetwod
                 
                 
@@ -417,12 +456,11 @@ class TwoDResponseCalculator:
         
         
         """            
-        #from .twodcontainer import TwoDSpectrumContainer
         from .twodcontainer import TwoDResponseContainer
-                   
+
+
         if _have_aceto:
             
-            #twods = TwoDSpectrumContainer(self.t2axis)
             twods = TwoDResponseContainer(self.t2axis)
 
             teetoos = self.t2axis.data
@@ -437,7 +475,6 @@ class TwoDResponseCalculator:
             
             # fall back on quantarhei's own implementation
         
-            #ret = TwoDSpectrumContainer()
             ret = TwoDResponseContainer()
             
         
