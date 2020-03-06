@@ -324,10 +324,8 @@ class TwoDResponseCalculator:
         #
         # Initialize response storage
         #
-        resp_r = numpy.zeros((Nr1, Nr3), 
-                             dtype=numpy.complex128, order='F')
-        resp_n = numpy.zeros((Nr1, Nr3), 
-                             dtype=numpy.complex128, order='F')
+        resp_r = numpy.zeros((Nr1, Nr3), dtype=numpy.complex128, order='F')
+        resp_n = numpy.zeros((Nr1, Nr3), dtype=numpy.complex128, order='F')
 
         # FIXME: on which axis we should be looking for it2 ??? 
         (it2, err) = self.t1axis.locate(tt2) 
@@ -346,20 +344,19 @@ class TwoDResponseCalculator:
         nr3td.nr3_r3g(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_r) 
         nr3td.nr3_r4g(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_n)
     
-        self._vprint(" - stimulated emission")
+        #self._vprint(" - stimulated emission")
         # SE
         nr3td.nr3_r1g(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_n)
         nr3td.nr3_r2g(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_r)
         
-        self._vprint(" - excited state absorption")
+        #self._vprint(" - excited state absorption")
         # ESA
         nr3td.nr3_r1fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_r)
         nr3td.nr3_r2fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_n)
 
-        #resp_Resa = numpy.zeros((Nr1, Nr3), 
-        #                     dtype=numpy.complex128, order='F')
-        #resp_Nesa = numpy.zeros((Nr1, Nr3), 
-        #                     dtype=numpy.complex128, order='F')
+        # KIERAN ADDED: Created to print out individual pathway reponses
+        #resp_Resa = numpy.zeros((Nr1, Nr3), dtype=numpy.complex128, order='F')
+        #resp_Nesa = numpy.zeros((Nr1, Nr3), dtype=numpy.complex128, order='F')
         # ESA
         #nr3td.nr3_r1fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_Resa)
         #nr3td.nr3_r2fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_Nesa)
@@ -372,7 +369,7 @@ class TwoDResponseCalculator:
         Utr = self.Uee[:,:,self.tc] - self.Uc0[:,:,self.tc] #-Uc1[:,:,tc]-Uc2[:,:,tc]
         self.sys.set_population_propagation_matrix(Utr) 
         
-        self._vprint(" - stimulated emission with transfer")    
+        #self._vprint(" - stimulated emission with transfer")    
         # SE
         nr3td.nr3_r1g_trans(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_n)
         nr3td.nr3_r2g_trans(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_r)
@@ -381,7 +378,7 @@ class TwoDResponseCalculator:
 #                nr3td.nr3_r2g_trN(lab, sys, No, it2, t1s, t3s, rwa, rmin, resp_r)
 #                
     
-        self._vprint(" - excited state absorption with transfer") 
+        #self._vprint(" - excited state absorption with transfer") 
         # ESA
         nr3td.nr3_r1fs_trans(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_r)
         nr3td.nr3_r2fs_trans(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_n)
@@ -392,19 +389,16 @@ class TwoDResponseCalculator:
 
         # KIERAN ADDED: Printing the responses into names directories
         if self.printResp:
-            numpy.savetxt('./' + self.printResp + '/respR_t' + str(int(tt2)) + '.txt', resp_r.real)
-            numpy.savetxt('./' + self.printResp + '/respN_t' + str(int(tt2)) + '.txt', resp_n.real)
-            numpy.savetxt('./' + self.printResp + '/timeData.txt', self.t1axis.data)
+            numpy.savez('./' + self.printResp + '/respR_t' + str(int(tt2)) + '.npz', reph = resp_r, nonr = resp_n, time = self.t1axis.data)
 
         #
         # Calculate corresponding 2D spectrum
         #
-        
         onetwod = TwoDResponse()
-        
+
         # KIERAN ADDED: Pads the data with zeroes and lengthens the axis accordingly
         if self.pad > 0:
-            print('padding by - ', self.pad)
+            #print('padding by - ', self.pad)
             t13Pad = TimeAxis(self.t1axis.start, self.t1axis.length + self.pad, self.t1axis.step)
             t13Pad.atype = 'complete'
             t13PadFreq = t13Pad.get_FrequencyAxis()
@@ -414,16 +408,29 @@ class TwoDResponseCalculator:
             onetwod.set_axis_1(t13PadFreq)
             onetwod.set_axis_3(t13PadFreq)
 
-            resp_rB = numpy.hstack((resp_r, numpy.zeros((resp_r.shape[0], self.pad))))
-            resp_rC = numpy.vstack((resp_rB, numpy.zeros((self.pad, resp_rB.shape[1]))))
-            resp_nB = numpy.hstack((resp_n, numpy.zeros((resp_n.shape[0], self.pad))))
-            resp_nC = numpy.vstack((resp_nB, numpy.zeros((self.pad, resp_nB.shape[1]))))
+            # Sloping the end of the data down to 0 to there isn't a hard cutoff at the end of the data
+            from scipy import signal as sig
+            window = 20
+            tuc = sig.tukey(window * 2, 1, sym = False)
+            for k in range(len(resp_r)):
+                resp_r[len(resp_r)-window:,k] *= tuc[window:]
+                resp_r[k,len(resp_r)-window:] *= tuc[window:]
+                resp_n[len(resp_n)-window:,k] *= tuc[window:]
+                resp_n[k,len(resp_n)-window:] *= tuc[window:]
 
-            ftresp = numpy.fft.fft(resp_rC,axis=1)
+            resp_r = numpy.hstack((resp_r, numpy.zeros((resp_r.shape[0], self.pad))))
+            resp_r = numpy.vstack((resp_r, numpy.zeros((self.pad, resp_r.shape[1]))))
+            resp_n = numpy.hstack((resp_n, numpy.zeros((resp_n.shape[0], self.pad))))
+            resp_n = numpy.vstack((resp_n, numpy.zeros((self.pad, resp_n.shape[1]))))
+
+            if self.printResp:
+                numpy.savez('./' + self.printResp + '/respT' + str(int(tt2)) + 'Pad.npz', reph = resp_r, nonr = resp_n, time = t13Pad.data)
+
+            ftresp = numpy.fft.fft(resp_r,axis=1)
             ftresp = numpy.fft.ifft(ftresp,axis=0)
             reph2D = numpy.fft.fftshift(ftresp)
             
-            ftresp = numpy.fft.ifft(resp_nC,axis=1)
+            ftresp = numpy.fft.ifft(resp_n,axis=1)
             ftresp = numpy.fft.ifft(ftresp,axis=0)*ftresp.shape[1]
             nonr2D = numpy.fft.fftshift(ftresp)
         else:

@@ -365,31 +365,7 @@ class TwoDSpectrum(DataSaveable, Saveable):
             if not use_max:
                 mx = nmax[0]
         self.data = (self.data/mx)*norm
-    '''
-    # KIERAN FOX ADDED THIS FUNCTION FROM twod22
-    def add_data(self, data, dtype="Tot"):
-        if dtype == "Tot":
-            
-            if self.data is None:
-                self.data = numpy.zeros(data.shape, dtype=data.dtype)
-            self.data += data
-            
-        elif dtype == "Reph":
-            if self.reph2D is None:
-                self.reph2D = numpy.zeros(data.shape, dtype=data.dtype)
-            self.reph2D += data                
-            
-        elif dtype == "Nonr":
-            if self.nonr2D is None:
-                self.nonr2D = numpy.zeros(data.shape, dtype=data.dtype)                
-            self.nonr2D += data
-                
-            
-        else:
-            
-            raise Exception("Unknow type of data: "+dtype)
-        
-    '''
+
     def devide_by(self, val):
         """Devides the total spectrum by a value
         

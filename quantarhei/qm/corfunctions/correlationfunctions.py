@@ -401,11 +401,12 @@ class CorrelationFunction(DFunction, UnitsManaged):
         from .spectraldensities import SpectralDensity
         
         temperature = params["T"]
-        ctime = params["gamma"]
+        #ctime = params["gamma"]
+        ctime = params["cortime"]
         
         # use the units in which params was defined
-        lamb = self.manager.iu_energy(params["reorg"],
-                                      units=self.energy_units)
+        lamb = self.manager.iu_energy(params["reorg"])#,
+                                      #units=self.energy_units)
         time = self.axis #.data
 
         if values is not None:
