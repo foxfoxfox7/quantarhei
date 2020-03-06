@@ -389,7 +389,7 @@ class TwoDResponseCalculator:
 
         # KIERAN ADDED: Printing the responses into names directories
         if self.printResp:
-            numpy.savez('./' + self.printResp + '/respR_t' + str(int(tt2)) + '.npz', reph = resp_r, nonr = resp_n, time = self.t1axis.data)
+            numpy.savez('./'+self.printResp+'/respR_t'+str(int(tt2))+'.npz', reph=resp_r, nonr=resp_n, time=self.t1axis.data)
 
         #
         # Calculate corresponding 2D spectrum
@@ -424,26 +424,19 @@ class TwoDResponseCalculator:
             resp_n = numpy.vstack((resp_n, numpy.zeros((self.pad, resp_n.shape[1]))))
 
             if self.printResp:
-                numpy.savez('./' + self.printResp + '/respT' + str(int(tt2)) + 'Pad.npz', reph = resp_r, nonr = resp_n, time = t13Pad.data)
+                numpy.savez('./'+self.printResp+'/respT'+str(int(tt2))+'Pad.npz', reph=resp_r, nonr=resp_n, time=t13Pad.data)
 
-            ftresp = numpy.fft.fft(resp_r,axis=1)
-            ftresp = numpy.fft.ifft(ftresp,axis=0)
-            reph2D = numpy.fft.fftshift(ftresp)
-            
-            ftresp = numpy.fft.ifft(resp_n,axis=1)
-            ftresp = numpy.fft.ifft(ftresp,axis=0)*ftresp.shape[1]
-            nonr2D = numpy.fft.fftshift(ftresp)
         else:
             onetwod.set_axis_1(self.oa1)
             onetwod.set_axis_3(self.oa3)
 
-            ftresp = numpy.fft.fft(resp_r,axis=1)
-            ftresp = numpy.fft.ifft(ftresp,axis=0)
-            reph2D = numpy.fft.fftshift(ftresp)
-            
-            ftresp = numpy.fft.ifft(resp_n,axis=1)
-            ftresp = numpy.fft.ifft(ftresp,axis=0)*ftresp.shape[1]
-            nonr2D = numpy.fft.fftshift(ftresp)
+        ftresp = numpy.fft.fft(resp_r,axis=1)
+        ftresp = numpy.fft.ifft(ftresp,axis=0)
+        reph2D = numpy.fft.fftshift(ftresp)
+        
+        ftresp = numpy.fft.ifft(resp_n,axis=1)
+        ftresp = numpy.fft.ifft(ftresp,axis=0)*ftresp.shape[1]
+        nonr2D = numpy.fft.fftshift(ftresp)
 
         onetwod.set_resolution("signals")
         onetwod._add_data(reph2D, dtype=signal_REPH)
