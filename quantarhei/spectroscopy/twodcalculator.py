@@ -111,7 +111,11 @@ class TwoDResponseCalculator:
         if self.verbose:
             print(string)
             
+<<<<<<< HEAD
     def bootstrap(self, rwa=0.0, pad = 0, lab=None, verbose=False, printEigen = False, printResp = False):
+=======
+    def bootstrap(self, rwa=0.0, pad=0, lab=None, verbose=False):
+>>>>>>> upstream/master
         """Sets up the environment for 2D calculation
         
         """
@@ -119,6 +123,7 @@ class TwoDResponseCalculator:
 
         self.verbose = verbose
         self.pad = pad
+<<<<<<< HEAD
         self.printResp = printResp
 
         if self.printResp:
@@ -126,6 +131,8 @@ class TwoDResponseCalculator:
                 os.mkdir(printResp)
             except OSError:
                 print ("Creation of the directory failed, it either already exists or you didn't give a string")
+=======
+>>>>>>> upstream/master
     
     
         if True:
@@ -418,7 +425,7 @@ class TwoDResponseCalculator:
 
         # KIERAN ADDED: Pads the data with zeroes and lengthens the axis accordingly
         if self.pad > 0:
-            #print('padding by - ', self.pad)
+            self._vprint('padding by - ' + str(self.pad))
             t13Pad = TimeAxis(self.t1axis.start, self.t1axis.length + self.pad, self.t1axis.step)
             t13Pad.atype = 'complete'
             t13PadFreq = t13Pad.get_FrequencyAxis()
@@ -443,6 +450,7 @@ class TwoDResponseCalculator:
             resp_n = numpy.hstack((resp_n, numpy.zeros((resp_n.shape[0], self.pad))))
             resp_n = numpy.vstack((resp_n, numpy.zeros((self.pad, resp_n.shape[1]))))
 
+<<<<<<< HEAD
             if self.printResp:
                 numpy.savez('./'+self.printResp+'/respT'+str(int(tt2))+'Pad.npz', 
                                         time=t13Pad.data, 
@@ -453,10 +461,13 @@ class TwoDResponseCalculator:
                                         rSEWT=resp_Rsewt, nSEWT=resp_Nsewt,
                                         rESAWT=resp_Resawt, nESAWT=resp_Nesawt)
 
+=======
+>>>>>>> upstream/master
         else:
             onetwod.set_axis_1(self.oa1)
             onetwod.set_axis_3(self.oa3)
 
+<<<<<<< HEAD
             if self.printResp:
                 numpy.savez('./'+self.printResp+'/respT'+str(int(tt2))+'Pad.npz', 
                                         time=t13Pad.data, 
@@ -467,6 +478,8 @@ class TwoDResponseCalculator:
                                         rSEWT=resp_Rsewt, nSEWT=resp_Nsewt,
                                         rESAWT=resp_Resawt, nESAWT=resp_Nesawt)
 
+=======
+>>>>>>> upstream/master
         ftresp = numpy.fft.fft(resp_r,axis=1)
         ftresp = numpy.fft.ifft(ftresp,axis=0)
         reph2D = numpy.fft.fftshift(ftresp)
