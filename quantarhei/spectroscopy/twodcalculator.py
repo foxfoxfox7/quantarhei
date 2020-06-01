@@ -13,6 +13,7 @@ from ..qm.propagators.poppropagator import PopulationPropagator
 from .twod2 import TwoDResponse
 from .. import signal_REPH, signal_NONR
 
+import quantarhei as qr
 
 try:
 
@@ -255,6 +256,9 @@ class TwoDResponseCalculator:
             self.Uee, cor = prop.get_PropagationMatrix(self.t2axis,
                                                   corrections=3)
 
+            qr.save_parcel(Kr, "utr.qrp")
+
+
             # FIXME: Order of transfer is set by hand here - needs to be moved
             # to some reasonable place
 
@@ -344,6 +348,9 @@ class TwoDResponseCalculator:
         nr3td.nr3_r3g(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_r)
         nr3td.nr3_r4g(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_n)
 
+        # All pathways are repeated and saved to alternative empty numpy
+        # arrays only if printResp has been defined as a string in the 
+        # bootstrap. 
         if self.printResp:
             resp_Rgsb = numpy.zeros((Nr1, Nr3), dtype=numpy.complex128, order='F')
             resp_Ngsb = numpy.zeros((Nr1, Nr3), dtype=numpy.complex128, order='F')
@@ -371,6 +378,7 @@ class TwoDResponseCalculator:
             resp_Nesa = numpy.zeros((Nr1, Nr3), dtype=numpy.complex128, order='F')
             nr3td.nr3_r1fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_Resa)
             nr3td.nr3_r2fs(self.lab, self.sys, it2, self.t1s, self.t3s, self.rwa, self.rmin, resp_Nesa)
+
         #
         # Transfer
         #
@@ -406,15 +414,13 @@ class TwoDResponseCalculator:
         t2 = time.time()
         self._vprint("... calculated in "+str(t2-t1)+" sec")
 
-        # KIERAN ADDED: Printing the responses into names directories
-
-
         #
         # Calculate corresponding 2D spectrum
         #
         onetwod = TwoDResponse()
 
-        # KIERAN ADDED: Pads the data with zeroes and lengthens the axis accordingly
+        # pad is set to 0 by default. if changed in the bootstrap,
+        # responses are padded with 0s and the time axis is lengthened
         if self.pad > 0:
             self._vprint('padding by - ' + str(self.pad))
 
@@ -442,8 +448,11 @@ class TwoDResponseCalculator:
             resp_n = numpy.hstack((resp_n, numpy.zeros((resp_n.shape[0], self.pad))))
             resp_n = numpy.vstack((resp_n, numpy.zeros((self.pad, resp_n.shape[1]))))
 
+            # If printResp is defined in bootstrap, the responses are
+            # saved as compressed numpy arrays. Extract to get total
+            # or individual responses
             if self.printResp:
-                numpy.savez('./'+self.printResp+'/respT'+str(int(tt2))+'Pad.npz',
+                numpy.savez('./'+self.printResp+'/respT'+str(int(tt2))+'.npz',
                                         time=t13Pad.data,
                                         rTot=resp_r, nTot=resp_n,
                                         rGSB=resp_Rgsb, nGSB=resp_Ngsb,
@@ -456,8 +465,9 @@ class TwoDResponseCalculator:
             onetwod.set_axis_1(self.oa1)
             onetwod.set_axis_3(self.oa3)
 
+            # Alternative responses without the padding (pad = 0)
             if self.printResp:
-                numpy.savez('./'+self.printResp+'/respT'+str(int(tt2))+'Pad.npz',
+                numpy.savez('./'+self.printResp+'/respT'+str(int(tt2))+'.npz',
                                         time=t13Pad.data,
                                         rTot=resp_r, nTot=resp_n,
                                         rGSB=resp_Rgsb, nGSB=resp_Ngsb,
