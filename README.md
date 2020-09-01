@@ -1,7 +1,5 @@
 # QUANTArhei: Open Quantum System Theory for Molecular Systems
 
-### See below for some example edits by Kieran Fox
-
 Quantarhei is in flux, but it already provides helper classes to define
 molecules, their aggregates and their interaction with external environment.
 It can calculate absorption spectra of individual molecules and their
@@ -25,7 +23,7 @@ with the pip command.
 
 As well as adapting the package to my specific projects, I have used this branch to make contributions to the way certain elements of the package runs. (See below my edits for a full description of the package). In addition to this I have found and corrected a number of bugs.
 
-### saving data as an instance variable or writing it out to a dictionary using numpy
+### Saving data as an instance variable or writing it out to a dictionary using numpy
 
 In order to obtain reliable output data, calculations need to run up to 1000 times using the Monte-Carlo method. The data is generated, processed, and then summed. With my changes, the data can now be output as it is generated and summed straight away as all future processes are linear. This means it only takes up as much RAM as simulations are run simultaneously. It also massively speeds up the computational process as the post-processing only needs to be done once at the end.
 
