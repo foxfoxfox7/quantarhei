@@ -21,7 +21,7 @@ with the pip command.
 
 # Kieran Fox's edits to the python package quantarhei
 
-As well as adapting the package to my specific projects, I have used this branch to make contributions to the way certain elements of the package runs. (See below my edits for a full description of the package). In addition to this I have found and corrected a number of bugs.
+As well as adapting the package to my specific projects, I have used this branch to make contributions to the way certain elements of the package runs. In addition to this I have found and corrected a number of bugs.
 
 ### Saving data as an instance variable or writing it out to a dictionary using numpy
 
