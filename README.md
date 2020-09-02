@@ -59,7 +59,7 @@ def bootstrap(self, rwa=0.0, pad=0, lab=None, verbose=False,
                 "exists or you didn't give a string")
 ~~~
 
-Here the instructions are given at bootstrap as they will be needed for multiple methods in the class.
+Here the instructions are given at bootstrap as they will be needed for multiple methods in the class. After many adjustments to the way the data is calculated, it is finally saved as an instance variable or saved on disk using numpy.savez.
 
 ~~~python
 if self.keep_resp:
